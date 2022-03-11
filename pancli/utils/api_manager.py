@@ -370,31 +370,15 @@ class ApiManager():
         return r['docid']
     
     def create_dirs_by_path(self, dirs: str) -> str:
-        '''use create_dir to create multilevel dir'''
+        '''use create_dirs to create multilevel dir'''
         self._check_token()
-        sp = dirs.split('/')
+        sp = dirs.strip('/').split('/')
         root_dir_id = self.get_resource_id(sp[0])
         if (root_dir_id is None):
             raise InvalidRootException('root dir does not exist')
         if (len(sp) == 1):
             return root_dir_id
         return self.create_dirs(root_dir_id, '/'.join(sp[1:]))
-        # for i in reversed(range(0, len(sp))):
-        #     existing_dir = '/'.join(sp[:i+1])
-        #     dir_to_create = '/'.join(sp[i+1:])
-        #     if (dir_to_check is not None):
-        #         break
-        
-        # for i in range(1, len(sp)):
-        #     assert parent_dir_id is not None, i
-        #     current_dir_id = self.get_resource_id('/'.join(sp[:i+1]))
-        #     if (current_dir_id is None):
-        #         print('/'.join(sp[:i+1]), ' is none, create', '/'.join(sp[i:]))
-        #         current_dir_id = self.create_dirs(parent_dir_id, '/'.join(sp[i:]))
-        #         break
-        #     else:
-        #         parent_dir_id = current_dir_id
-        # return current_dir_id
     
     def delete_dir(self, dir_id: str):
         self._check_token()
