@@ -12,8 +12,8 @@ python setup.py install
 
 # ls
 bhpan ls [远程文件/文件夹]
-#（可用~表示文档根目录，linux下需转义为 \~ ）
-bhpan ls \~ -h
+#（可用home表示文档根目录）
+bhpan ls home -h
 
 
 
@@ -35,22 +35,22 @@ bhpan rm [远程文件/文件夹]
 # cat
 bhpan cat [远程文件]
 # 可pipe
-bhpan cat \~/xxx.txt | tail
+bhpan cat home/xxx.txt | tail
 
 
 
 # mv rm 和linux下类似
 # 重命名
-bhpan mv ~/test.png ~/test2.png
-# 移动（~/dir2/dir3必须存在）
-bhpan mv ~/dir1/test.png ~/dir2/dir3
+bhpan mv home/test.png home/test2.png
+# 移动（home/dir2/dir3必须存在）
+bhpan mv home/dir1/test.png home/dir2/dir3
 # 移动并重命名
-bhpan mv ~/dir1/test.png ~/dir2/dir3/test2.png
+bhpan mv home/dir1/test.png home/dir2/dir3/test2.png
 # -f 覆盖
 
 
 # mkdir可直接创建多级路径
-bhpan mkdir ~/test/1/2/3
+bhpan mkdir home/test/1/2/3
 
 
 
