@@ -1,0 +1,4 @@
+requests
+tqdm
+prettytable
+rsa
