@@ -18,7 +18,7 @@ bhpan ls home -h
 
 
 # upload
-bhpan upload [本地文件/文件夹] [远程文件夹]
+bhpan upload (-r) [本地文件/文件夹] [远程文件夹(如果是文件夹上传，远程必须输入一个不存在的路径，自动创建)]
 
 
 
