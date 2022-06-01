@@ -47,6 +47,7 @@ def sizeof_fmt(num, suffix=""):
 
 # upload entry point
 def upload_file(manager: ApiManager, local_path, remote_dir, rename=None, sleep_interval=0.5, allow_recurse=False):
+    remote_dir = remote_dir.strip('/')
     local_path = os.path.normpath(local_path)
     remote_name = rename if rename is not None else os.path.split(os.path.abspath(local_path))[1]
     #print(local_path, '->', remote_dir, 'as', remote_name)
