@@ -2,6 +2,10 @@
 
 import requests
 import json
+import os
+
+missing_cert = os.path.join(os.path.split(os.path.abspath(__file__))[0], 'cert.pem')
+
 
 class ApiException(Exception):
 
@@ -18,7 +22,7 @@ def post_json(url: str, json_obj, tokenid: str=None):
     if (tokenid is not None):
         headers['Authorization'] = 'Bearer ' + tokenid
     for retry in range(10):
-        r = requests.post(url, headers=headers, data=j)
+        r = requests.post(url, headers=headers, data=j, verify=missing_cert)
         if (r.status_code != 503):
             break
         else:
@@ -37,17 +41,17 @@ def post_json(url: str, json_obj, tokenid: str=None):
 
 
 def put_file(url: str, headers: dict, content: bytes):
-    r = requests.put(url, headers=headers, data=content)
+    r = requests.put(url, headers=headers, data=content, verify=missing_cert)
 
 def put_file_stream(url: str, headers: dict, content_stream):
-    r = requests.put(url, headers=headers, data=content_stream)
+    r = requests.put(url, headers=headers, data=content_stream, verify=missing_cert)
 
 
 def get_file(url: str):
-    r = requests.get(url)
+    r = requests.get(url, verify=missing_cert)
     return r.content
 
 def get_file_stream(url: str):
-    r = requests.get(url, stream=True)
+    r = requests.get(url, stream=True, verify=missing_cert)
     return r
 
