@@ -81,8 +81,10 @@ def post_json(url: str, json_obj, tokenid: str=None, *, session: requests.Sessio
         headers['Authorization'] = 'Bearer ' + tokenid
     for retry in range(10):
         if (session is not None):
-            requests = session
-        r = requests.post(url, headers=headers, data=j, verify=missing_cert)
+            requests_ = session
+        else:
+            requests_ = requests
+        r = requests_.post(url, headers=headers, data=j, verify=missing_cert)
         if (r.status_code != 503):
             break
         else:
