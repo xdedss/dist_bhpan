@@ -499,6 +499,10 @@ def move_file(manager: ApiManager, src: str, dst: str, overwrite=False, copy=Fal
 def test(manager: ApiManager):
     try:
 
+
+        ...
+        # print(manager.list_root())
+
         # dir_id = manager.get_resource_id(process_remote_home(manager, '~/automated'))
         # r = manager.get_file_meta(dir_id)
         # print(r)
@@ -510,9 +514,10 @@ def test(manager: ApiManager):
         # print(bin(link.link_info.perm))
         # print(link.list_dir())
 
-        doc_info = manager.get_resource_info_by_path(process_remote_home(manager, '~/temp/dist_bhpan/dist'))
-        link_info = manager.delete_link(doc_info.docid)
-        print(link_info)
+        # doc_info = manager.get_resource_info_by_path(('/刘卓然_SY2215207/temp'))
+        # # doc_info = manager.get_resource_info_by_path(process_remote_home(manager, '~/temp/dist_bhpan/dist'))
+        # link_info = manager.delete_link(doc_info.docid)
+        # print(link_info)
 
     except Exception as e:
         import traceback
@@ -525,13 +530,22 @@ def main():
     # bhpan host
     host = 'bhpan.buaa.edu.cn'
     # bhpan public key
+    # pubkey = '''-----BEGIN PUBLIC KEY-----
+    # MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC7JL0DcaMUHumSdhxXTxqiABBC
+    # DERhRJIsAPB++zx1INgSEKPGbexDt1ojcNAc0fI+G/yTuQcgH1EW8posgUni0mcT
+    # E6CnjkVbv8ILgCuhy+4eu+2lApDwQPD9Tr6J8k21Ruu2sWV5Z1VRuQFqGm/c5vaT
+    # OQE5VFOIXPVTaa25mQIDAQAB
+    # -----END PUBLIC KEY-----
+    # '''
     pubkey = '''-----BEGIN PUBLIC KEY-----
-    MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC7JL0DcaMUHumSdhxXTxqiABBC
-    DERhRJIsAPB++zx1INgSEKPGbexDt1ojcNAc0fI+G/yTuQcgH1EW8posgUni0mcT
-    E6CnjkVbv8ILgCuhy+4eu+2lApDwQPD9Tr6J8k21Ruu2sWV5Z1VRuQFqGm/c5vaT
-    OQE5VFOIXPVTaa25mQIDAQAB
-    -----END PUBLIC KEY-----
-    '''
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4E+eiWRwffhRIPQYvlXU
+jf0b3HqCmosiCxbFCYI/gdfDBhrTUzbt3fL3o/gRQQBEPf69vhJMFH2ZMtaJM6oh
+E3yQef331liPVM0YvqMOgvoID+zDa1NIZFObSsjOKhvZtv9esO0REeiVEPKNc+Dp
+6il3x7TV9VKGEv0+iriNjqv7TGAexo2jVtLm50iVKTju2qmCDG83SnVHzsiNj70M
+iviqiLpgz72IxjF+xN4bRw8I5dD0GwwO8kDoJUGWgTds+VckCwdtZA65oui9Osk5
+t1a4pg6Xu9+HFcEuqwJTDxATvGAz1/YW0oUisjM0ObKTRDVSfnTYeaBsN6L+M+8g
+CwIDAQAB
+-----END PUBLIC KEY-----'''  # changed since v7 (2023.08)
 
     parser = argparse.ArgumentParser('bhpan api tools')
     parser.add_argument('-u', '--username', default=None, help='login as another user')

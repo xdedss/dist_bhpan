@@ -72,7 +72,7 @@ class ApiException(Exception):
 
 
 def post_json(url: str, json_obj, tokenid: str=None, *, session: requests.Session=None):
-    print(url)
+    # print(url)
     j = json.dumps(json_obj)
     headers = {
         'Content-Type': 'application/json',
@@ -90,6 +90,29 @@ def post_json(url: str, json_obj, tokenid: str=None, *, session: requests.Sessio
         else:
             print('503 server busy, retry:', retry+1)
     if (r.status_code not in (200, 201)):
+        j = None
+        try:
+            j = r.json()
+        except:
+            pass
+        raise ApiException(j, 'api returned HTTP %s\n%s' % (r.status_code, r.text))
+    if (r.text == ''):
+        return None
+    res = r.json()
+    return res
+
+
+def get_url(url: str, tokenid: str=None):
+    headers = dict()
+    if (tokenid is not None):
+        headers['Authorization'] = 'Bearer ' + tokenid
+    for retry in range(10):
+        r = requests.get(url, headers=headers, verify=missing_cert)
+        if (r.status_code != 503):
+            break
+        else:
+            print('503 server busy, retry:', retry+1)
+    if (r.status_code != 200):
         j = None
         try:
             j = r.json()
