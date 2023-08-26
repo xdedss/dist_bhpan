@@ -76,7 +76,7 @@ class ApiManager():
     _tokenid = ''
     _expires = 0
 
-    def __init__(self, host, username, password, pubkey, encrypted=None):
+    def __init__(self, host, username, password, pubkey, encrypted=None, cached_token=None, cached_expire=None):
         self.base_url = f'https://{host}:443/api/efast/v1'
         self.host = host
         self._pubkey = pubkey
@@ -85,7 +85,13 @@ class ApiManager():
         self._encrypted = encrypted
         assert (password is not None and pubkey is not None) or encrypted is not None
         
-        self._check_token()
+        print(cached_expire)
+        if (cached_token is not None and cached_expire is not None):
+            self._tokenid = cached_token
+            self._expires = cached_expire
+            self._check_token(use_request=True)
+        else:
+            self._check_token()
     
     def _update_token(self):
         # print('update')
@@ -94,7 +100,7 @@ class ApiManager():
             encrypted = rsa_utils.encrypt(self._password, self._pubkey)
             self._encrypted = encrypted
         try:
-            access_token = auth_session.get_access_token(f'https://{self.host}:443/', self._username, self._encrypted, verbose=True)
+            access_token = auth_session.get_access_token(f'https://{self.host}:443/', self._username, self._encrypted, verbose=False)
         except api.ApiException as e:
             if (e.err is not None and e.err['errcode'] == 401003):
                 raise WrongPasswordException(e)
@@ -105,9 +111,20 @@ class ApiManager():
         self._expires = 3600 + time.time()
         self._tokenid = access_token
 
-    def _check_token(self):
-        if (time.time() > (self._expires - 60)):
-            self._update_token()
+    def _check_token(self, use_request=False):
+        if (use_request):
+            if (time.time() > (self._expires - 60)):
+                self._update_token()
+            else:
+                try:
+                    self.get_entrydoc()
+                except api.ApiException as e:
+                    if (e.err is not None and e.err['errcode'] == 401001001): # invalid token
+                        print('updating token cache')
+                        self._update_token()
+        else:
+            if (time.time() > (self._expires - 60)):
+                self._update_token()
 
     # dir/file
     def get_resource_id(self, path: str):
@@ -170,6 +187,7 @@ class ApiManager():
         return r['namepath']
 
     def get_entrydoc(self):
+        self._check_token()
         r = api.get_url(self._make_url('/entry-doc-lib?type=user_doc_lib&sort=doc_lib_name&direction=asc'), tokenid=self._tokenid)
         return r 
 

@@ -620,6 +620,23 @@ CwIDAQAB
 
     # read stored config
     config = StoredObject('bhpan', 'config.json')
+
+    # handle config versions
+    updated_keys = [
+        (2, ['encrypted']),
+    ]
+    config_rivision = config.get_by_path('revision', default_val=0)
+    current_rivision = 2
+    if (config_rivision != current_rivision):
+        print(f'updating config from {config_rivision} to {current_rivision}')
+        for rev, keys in updated_keys:
+            if (rev > config_rivision):
+                for key in keys:
+                    config.remove_by_path(key)
+        config.set_by_path('revision', current_rivision)
+        config.save()
+
+    # default
     config.set_by_path('store_password', True, override=False)
     config.save()
 
@@ -652,7 +669,10 @@ CwIDAQAB
     login_ok = False
     for retry in range(3):
         try:
-            m = ApiManager(host, username, password, pubkey, encrypted=encrypted)
+            m = ApiManager(
+                host, username, password, pubkey, encrypted=encrypted,
+                cached_token=config.get_by_path('cached_token/token'),
+                cached_expire=config.get_by_path('cached_token/expires'))
             login_ok = True
             break
         except utils.api_manager.WrongPasswordException as e:
@@ -662,6 +682,10 @@ CwIDAQAB
     if (login_ok):
         config.save()
         args.func()
+        if (m._expires > 0):
+            config.set_by_path('cached_token/token', m._tokenid)
+            config.set_by_path('cached_token/expires', m._expires)
+            config.save()
     else:
         config.remove_by_path('username')
         config.remove_by_path('encrypted')
