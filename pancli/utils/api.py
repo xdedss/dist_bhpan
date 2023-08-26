@@ -71,7 +71,8 @@ class ApiException(Exception):
         self.err = err
 
 
-def post_json(url: str, json_obj, tokenid: str=None):
+def post_json(url: str, json_obj, tokenid: str=None, *, session: requests.Session=None):
+    print(url)
     j = json.dumps(json_obj)
     headers = {
         'Content-Type': 'application/json',
@@ -79,12 +80,14 @@ def post_json(url: str, json_obj, tokenid: str=None):
     if (tokenid is not None):
         headers['Authorization'] = 'Bearer ' + tokenid
     for retry in range(10):
+        if (session is not None):
+            requests = session
         r = requests.post(url, headers=headers, data=j, verify=missing_cert)
         if (r.status_code != 503):
             break
         else:
             print('503 server busy, retry:', retry+1)
-    if (r.status_code != 200):
+    if (r.status_code not in (200, 201)):
         j = None
         try:
             j = r.json()
