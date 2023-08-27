@@ -85,7 +85,7 @@ class ApiManager():
         self._encrypted = encrypted
         assert (password is not None and pubkey is not None) or encrypted is not None
         
-        print(cached_expire)
+        # print(cached_expire)
         if (cached_token is not None and cached_expire is not None):
             self._tokenid = cached_token
             self._expires = cached_expire
@@ -130,6 +130,8 @@ class ApiManager():
     def get_resource_id(self, path: str):
         '''returns None if path does not exist'''
         info = self.get_resource_info_by_path(path)
+        if (info is None):
+            return None
         return info.docid
     
     def get_resource_info_by_path(self, path: str):
@@ -138,11 +140,12 @@ class ApiManager():
         if (path is None or path == ''):
             return None
         try:
+            # print(path)
             r = api.post_json(self._make_url('/file/getinfobypath'), {
                 'namepath': path,
             }, tokenid=self._tokenid)
         except api.ApiException as e:
-            if (e.err is not None and (e.err['errcode'] in [404006, 403024])):
+            if (e.err is not None and (e.err['code'] in [404006, 403024, 404002006])):
                 return None
             else:
                 raise
