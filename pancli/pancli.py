@@ -625,16 +625,21 @@ CwIDAQAB
     updated_keys = [
         (2, ['encrypted']),
     ]
-    config_rivision = config.get_by_path('revision', default_val=0)
-    current_rivision = 2
-    if (config_rivision != current_rivision):
-        print(f'updating config from {config_rivision} to {current_rivision}')
+    config_revision = config.get_by_path('revision', default_val=0)
+    current_revision = 2
+    if (config_revision < current_revision):
+        print(f'updating config from {config_revision} to {current_revision}')
         for rev, keys in updated_keys:
-            if (rev > config_rivision):
+            if (rev > config_revision):
                 for key in keys:
                     config.remove_by_path(key)
-        config.set_by_path('revision', current_rivision)
+        config.set_by_path('revision', current_revision)
         config.save()
+    elif (config_revision > current_revision):
+        # bad
+        print(f'you have a config file of version {config_revision} ({config.storage_file}), which is newer than bhpan cli tool version ({current_revision})')
+        print(f'delete the config file if you want to use the current version of bhpan cli tool')
+        return
 
     # default
     config.set_by_path('store_password', True, override=False)
