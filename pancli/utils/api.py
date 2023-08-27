@@ -84,11 +84,15 @@ def post_json(url: str, json_obj, tokenid: str=None, *, session: requests.Sessio
             requests_ = session
         else:
             requests_ = requests
-        r = requests_.post(url, headers=headers, data=j, verify=missing_cert)
-        if (r.status_code != 503):
-            break
-        else:
-            print('503 server busy, retry:', retry+1)
+        try:
+            r = requests_.post(url, headers=headers, data=j, verify=missing_cert)
+            if (r.status_code != 503):
+                break
+            else:
+                print('503 server busy, retry:', retry+1)
+        except requests.exceptions.ConnectionError as e:
+            # since v7 the server will occasionally not respond
+            print('requests.exceptions.ConnectionError, retry:', retry+1)
     if (r.status_code not in (200, 201)):
         j = None
         try:
@@ -126,7 +130,12 @@ def get_url(url: str, tokenid: str=None):
 
 
 def put_file(url: str, headers: dict, content: bytes):
-    r = requests.put(url, headers=headers, data=content, verify=missing_cert)
+    for retry in range(10):
+        try:
+            r = requests.put(url, headers=headers, data=content, verify=missing_cert)
+            break
+        except requests.exceptions.ConnectionError as e:
+            print('requests.exceptions.ConnectionError, retry:', retry+1)
 
 def put_file_stream(url: str, headers: dict, content_stream):
     r = requests.put(url, headers=headers, data=content_stream, verify=missing_cert)
