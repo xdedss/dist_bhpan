@@ -102,7 +102,7 @@ class ApiManager():
         try:
             access_token = auth_session.get_access_token(f'https://{self.host}:443/', self._username, self._encrypted, verbose=False)
         except api.ApiException as e:
-            if (e.err is not None and e.err['errcode'] == 401003):
+            if (e.err is not None and e.err['code'] == 401001003):
                 raise WrongPasswordException(e)
             else:
                 raise
@@ -119,7 +119,7 @@ class ApiManager():
                 try:
                     self.get_entrydoc()
                 except api.ApiException as e:
-                    if (e.err is not None and e.err['errcode'] == 401001001): # invalid token
+                    if (e.err is not None and e.err['code'] == 401001001): # invalid token
                         print('updating token cache')
                         self._update_token()
         else:
@@ -202,6 +202,7 @@ class ApiManager():
         }, tokenid=self._tokenid)
         return r['docinfos']
 
+    # unused
     def resource_is_file(self, docid: str):
         self._check_token()
         try:
@@ -358,7 +359,7 @@ class ApiManager():
                 'ondup': ondup,
             }, tokenid=self._tokenid)
         except api.ApiException as e:
-            if (e.err is not None and (e.err['errcode'] in [403019])):
+            if (e.err is not None and (e.err['errcode'] in [403019])): # not used in v7
                 raise MoveToChildDirectoryException()
             else:
                 raise
@@ -382,7 +383,7 @@ class ApiManager():
                 'ondup': ondup,
             }, tokenid=self._tokenid)
         except api.ApiException as e:
-            if (e.err is not None and (e.err['errcode'] in [403019])):
+            if (e.err is not None and (e.err['errcode'] in [403019])): # not used in v7
                 raise MoveToChildDirectoryException()
             else:
                 raise
