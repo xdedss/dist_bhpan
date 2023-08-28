@@ -3,6 +3,7 @@
 import requests
 import json
 import os
+import time
 
 from . import local_storage
 
@@ -90,9 +91,11 @@ def post_json(url: str, json_obj, tokenid: str=None, *, session: requests.Sessio
                 break
             else:
                 print('503 server busy, retry:', retry+1)
+                time.sleep(1)
         except requests.exceptions.ConnectionError as e:
             # since v7 the server will occasionally not respond
             print('requests.exceptions.ConnectionError, retry:', retry+1)
+            time.sleep(1)
     if (r.status_code not in (200, 201)):
         j = None
         try:
@@ -116,6 +119,7 @@ def get_url(url: str, tokenid: str=None):
             break
         else:
             print('503 server busy, retry:', retry+1)
+            time.sleep(1)
     if (r.status_code != 200):
         j = None
         try:
@@ -136,6 +140,7 @@ def put_file(url: str, headers: dict, content: bytes):
             break
         except requests.exceptions.ConnectionError as e:
             print('requests.exceptions.ConnectionError, retry:', retry+1)
+            time.sleep(1)
 
 def put_file_stream(url: str, headers: dict, content_stream):
     r = requests.put(url, headers=headers, data=content_stream, verify=missing_cert)
