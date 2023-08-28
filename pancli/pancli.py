@@ -681,8 +681,10 @@ CwIDAQAB
             login_ok = True
             break
         except utils.api_manager.WrongPasswordException as e:
-            time.sleep(1)
             print('wrong username/pass, try', retry)
+            time.sleep(1)
+            password = getpass.getpass()
+            config.set_by_path('encrypted', utils.rsa_utils.encrypt(password, pubkey))
 
     if (login_ok):
         config.save()
