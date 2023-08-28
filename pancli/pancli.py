@@ -499,6 +499,10 @@ def move_file(manager: ApiManager, src: str, dst: str, overwrite=False, copy=Fal
 def test(manager: ApiManager):
     try:
 
+
+        ...
+        # print(manager.list_root())
+
         # dir_id = manager.get_resource_id(process_remote_home(manager, '~/automated'))
         # r = manager.get_file_meta(dir_id)
         # print(r)
@@ -510,9 +514,10 @@ def test(manager: ApiManager):
         # print(bin(link.link_info.perm))
         # print(link.list_dir())
 
-        doc_info = manager.get_resource_info_by_path(process_remote_home(manager, '~/temp/dist_bhpan/dist'))
-        link_info = manager.delete_link(doc_info.docid)
-        print(link_info)
+        # doc_info = manager.get_resource_info_by_path(('/刘卓然_SY2215207/temp'))
+        # # doc_info = manager.get_resource_info_by_path(process_remote_home(manager, '~/temp/dist_bhpan/dist'))
+        # link_info = manager.delete_link(doc_info.docid)
+        # print(link_info)
 
     except Exception as e:
         import traceback
@@ -525,13 +530,22 @@ def main():
     # bhpan host
     host = 'bhpan.buaa.edu.cn'
     # bhpan public key
+    # pubkey = '''-----BEGIN PUBLIC KEY-----
+    # MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC7JL0DcaMUHumSdhxXTxqiABBC
+    # DERhRJIsAPB++zx1INgSEKPGbexDt1ojcNAc0fI+G/yTuQcgH1EW8posgUni0mcT
+    # E6CnjkVbv8ILgCuhy+4eu+2lApDwQPD9Tr6J8k21Ruu2sWV5Z1VRuQFqGm/c5vaT
+    # OQE5VFOIXPVTaa25mQIDAQAB
+    # -----END PUBLIC KEY-----
+    # '''
     pubkey = '''-----BEGIN PUBLIC KEY-----
-    MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC7JL0DcaMUHumSdhxXTxqiABBC
-    DERhRJIsAPB++zx1INgSEKPGbexDt1ojcNAc0fI+G/yTuQcgH1EW8posgUni0mcT
-    E6CnjkVbv8ILgCuhy+4eu+2lApDwQPD9Tr6J8k21Ruu2sWV5Z1VRuQFqGm/c5vaT
-    OQE5VFOIXPVTaa25mQIDAQAB
-    -----END PUBLIC KEY-----
-    '''
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4E+eiWRwffhRIPQYvlXU
+jf0b3HqCmosiCxbFCYI/gdfDBhrTUzbt3fL3o/gRQQBEPf69vhJMFH2ZMtaJM6oh
+E3yQef331liPVM0YvqMOgvoID+zDa1NIZFObSsjOKhvZtv9esO0REeiVEPKNc+Dp
+6il3x7TV9VKGEv0+iriNjqv7TGAexo2jVtLm50iVKTju2qmCDG83SnVHzsiNj70M
+iviqiLpgz72IxjF+xN4bRw8I5dD0GwwO8kDoJUGWgTds+VckCwdtZA65oui9Osk5
+t1a4pg6Xu9+HFcEuqwJTDxATvGAz1/YW0oUisjM0ObKTRDVSfnTYeaBsN6L+M+8g
+CwIDAQAB
+-----END PUBLIC KEY-----'''  # changed since v7 (2023.08)
 
     parser = argparse.ArgumentParser('bhpan api tools')
     parser.add_argument('-u', '--username', default=None, help='login as another user')
@@ -606,6 +620,28 @@ def main():
 
     # read stored config
     config = StoredObject('bhpan', 'config.json')
+
+    # handle config versions
+    updated_keys = [
+        (2, ['encrypted']),
+    ]
+    config_revision = config.get_by_path('revision', default_val=0)
+    current_revision = 2
+    if (config_revision < current_revision):
+        print(f'updating config from {config_revision} to {current_revision}')
+        for rev, keys in updated_keys:
+            if (rev > config_revision):
+                for key in keys:
+                    config.remove_by_path(key)
+        config.set_by_path('revision', current_revision)
+        config.save()
+    elif (config_revision > current_revision):
+        # bad
+        print(f'you have a config file of version {config_revision} ({config.storage_file}), which is newer than bhpan cli tool version ({current_revision})')
+        print(f'delete the config file if you want to use the current version of bhpan cli tool')
+        return
+
+    # default
     config.set_by_path('store_password', True, override=False)
     config.save()
 
@@ -638,16 +674,25 @@ def main():
     login_ok = False
     for retry in range(3):
         try:
-            m = ApiManager(host, username, password, pubkey, encrypted=encrypted)
+            m = ApiManager(
+                host, username, password, pubkey, encrypted=encrypted,
+                cached_token=config.get_by_path('cached_token/token'),
+                cached_expire=config.get_by_path('cached_token/expires'))
             login_ok = True
             break
         except utils.api_manager.WrongPasswordException as e:
-            time.sleep(1)
             print('wrong username/pass, try', retry)
+            time.sleep(1)
+            password = getpass.getpass()
+            config.set_by_path('encrypted', utils.rsa_utils.encrypt(password, pubkey))
 
     if (login_ok):
         config.save()
         args.func()
+        if (m._expires > 0):
+            config.set_by_path('cached_token/token', m._tokenid)
+            config.set_by_path('cached_token/expires', m._expires)
+            config.save()
     else:
         config.remove_by_path('username')
         config.remove_by_path('encrypted')

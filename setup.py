@@ -6,7 +6,7 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 
 setup(
     name = 'bhpan',
-    version = '0.0.2',
+    version = '0.0.3',
     author = 'LZR',
     license = 'MIT',
     description = 'bhpan commandline tool',

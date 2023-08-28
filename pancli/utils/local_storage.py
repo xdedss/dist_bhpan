@@ -43,7 +43,7 @@ class StoredObject():
             if (k in current):
                 current = current[k]
             else:
-                return None
+                return default_val
         return current
     
     def set_by_path(self, path, val, override=True):
@@ -52,7 +52,7 @@ class StoredObject():
         for k in keys[:-1]:
             if (not k in current):
                 current[k] = {}
-                current = current[k]
+            current = current[k]
         if (override or (keys[-1] not in current)):
             current[keys[-1]] = val
 

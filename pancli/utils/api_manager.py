@@ -1,6 +1,6 @@
 
 
-from . import api, rsa_utils
+from . import api, rsa_utils, auth_session
 
 import time
 
@@ -76,8 +76,8 @@ class ApiManager():
     _tokenid = ''
     _expires = 0
 
-    def __init__(self, host, username, password, pubkey, encrypted=None):
-        self.base_url = f'https://{host}:443/api/v1'
+    def __init__(self, host, username, password, pubkey, encrypted=None, cached_token=None, cached_expire=None):
+        self.base_url = f'https://{host}:443/api/efast/v1'
         self.host = host
         self._pubkey = pubkey
         self._password = password
@@ -85,7 +85,13 @@ class ApiManager():
         self._encrypted = encrypted
         assert (password is not None and pubkey is not None) or encrypted is not None
         
-        self._check_token()
+        # print(cached_expire)
+        if (cached_token is not None and cached_expire is not None):
+            self._tokenid = cached_token
+            self._expires = cached_expire
+            self._check_token(use_request=True)
+        else:
+            self._check_token()
     
     def _update_token(self):
         # print('update')
@@ -94,39 +100,39 @@ class ApiManager():
             encrypted = rsa_utils.encrypt(self._password, self._pubkey)
             self._encrypted = encrypted
         try:
-            r = api.post_json(self._make_url('/auth1/getnew'), {
-                "account": self._username,
-                "password": encrypted,
-            })
+            access_token = auth_session.get_access_token(f'https://{self.host}:443/', self._username, self._encrypted, verbose=False)
         except api.ApiException as e:
-            if (e.err is not None and e.err['errcode'] == 401003):
+            if (e.err is not None and e.err['code'] == 401001003):
                 raise WrongPasswordException(e)
             else:
                 raise
-        self._tokenid = r['tokenid']
-        self._userid = r['userid']
-        self._expires = r['expires'] + time.time()
+        # self._tokenid = r['tokenid']
+        # self._userid = r['userid']
+        self._expires = 3600 + time.time()
+        self._tokenid = access_token
 
-    def _check_token(self):
-        if (time.time() > (self._expires - 60)):
-            self._update_token()
+    def _check_token(self, use_request=False):
+        if (use_request):
+            if (time.time() > (self._expires - 60)):
+                self._update_token()
+            else:
+                try:
+                    self.get_entrydoc()
+                except api.ApiException as e:
+                    if (e.err is not None and e.err['code'] == 401001001): # invalid token
+                        print('updating token cache')
+                        self._update_token()
+        else:
+            if (time.time() > (self._expires - 60)):
+                self._update_token()
 
     # dir/file
     def get_resource_id(self, path: str):
         '''returns None if path does not exist'''
-        self._check_token()
-        if (path is None or path == ''):
+        info = self.get_resource_info_by_path(path)
+        if (info is None):
             return None
-        try:
-            r = api.post_json(self._make_url('/file/getinfobypath'), {
-                'namepath': path,
-            }, tokenid=self._tokenid)
-        except api.ApiException as e:
-            if (e.err is not None and (e.err['errcode'] in [404006, 403024])):
-                return None
-            else:
-                raise
-        return r['docid']
+        return info.docid
     
     def get_resource_info_by_path(self, path: str):
         '''returns None if path does not exist'''
@@ -134,11 +140,12 @@ class ApiManager():
         if (path is None or path == ''):
             return None
         try:
+            # print(path)
             r = api.post_json(self._make_url('/file/getinfobypath'), {
                 'namepath': path,
             }, tokenid=self._tokenid)
         except api.ApiException as e:
-            if (e.err is not None and (e.err['errcode'] in [404006, 403024])):
+            if (e.err is not None and (e.err['code'] in [404006, 403024, 404002006])):
                 return None
             else:
                 raise
@@ -146,6 +153,34 @@ class ApiManager():
         for k in ['size', 'docid', 'rev', 'modified', 'client_mtime', 'name']:
             setattr(res, k, r[k])
         return res
+
+    def list_root(self):
+        '''
+        entry-doc-lib?sort=doc_lib_name&direction=asc
+        [
+            {
+                "attr": 83886164,
+                "created_at": "2021-10-27T14:28:50Z",
+                "created_by": {
+                    "id": "33e88d54-3732-11ec-931c-a0369f2112f0",
+                    "name": "0_MAC版M1芯片安装包及说明",
+                    "type": ""
+                },
+                "id": "gns:\/\/7E2DB21C35B943D9BC9E043AEFCCC128",
+                "modified_at": "2023-05-09T02:08:33Z",
+                "modified_by": {
+                    "id": "33e88d54-3732-11ec-931c-a0369f2112f0",
+                    "name": "0_MAC版M1芯片安装包及说明",
+                    "type": "user"
+                },
+                "name": "0_MAC版M1芯片安装包及说明",
+                "rev": "45D3C67743CA434FB409B77FEA0F644A",
+                "type": "shared_user_doc_lib"
+            }, ...
+        ]
+        '''
+        r = api.get_url(self._make_url('/entry-doc-lib?sort=doc_lib_name&direction=asc'), tokenid=self._tokenid)
+        return r
 
     def get_resource_path(self, docid: str):
         self._check_token()
@@ -156,11 +191,18 @@ class ApiManager():
 
     def get_entrydoc(self):
         self._check_token()
+        r = api.get_url(self._make_url('/entry-doc-lib?type=user_doc_lib&sort=doc_lib_name&direction=asc'), tokenid=self._tokenid)
+        return r 
+
+
+    def get_entrydoc_legacy(self):
+        self._check_token()
         r = api.post_json(self._make_url('/entrydoc2/get'), {
             "doctype": 1,
         }, tokenid=self._tokenid)
         return r['docinfos']
 
+    # unused
     def resource_is_file(self, docid: str):
         self._check_token()
         try:
@@ -317,7 +359,7 @@ class ApiManager():
                 'ondup': ondup,
             }, tokenid=self._tokenid)
         except api.ApiException as e:
-            if (e.err is not None and (e.err['errcode'] in [403019])):
+            if (e.err is not None and (e.err['errcode'] in [403019])): # not used in v7
                 raise MoveToChildDirectoryException()
             else:
                 raise
@@ -341,7 +383,7 @@ class ApiManager():
                 'ondup': ondup,
             }, tokenid=self._tokenid)
         except api.ApiException as e:
-            if (e.err is not None and (e.err['errcode'] in [403019])):
+            if (e.err is not None and (e.err['errcode'] in [403019])): # not used in v7
                 raise MoveToChildDirectoryException()
             else:
                 raise
@@ -532,7 +574,7 @@ class ApiLinkManager():
     link_info: LinkInfoData = None
 
     def __init__(self, host: str, link_id: str, password: str=None):
-        self.base_url = f'https://{host}:443/api/v1'
+        self.base_url = f'https://{host}:443/api/efast/v1'
         self.host = host
         self.link_info = LinkInfoData()
         self.link_info.link = link_id
