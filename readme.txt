@@ -1,4 +1,7 @@
 
+本项目提供了上传、下载、管理北航网盘文件的命令行工具，适合在无GUI的服务器上使用
+
+# Anyshare API 参考 https://developers.aishutech.com/openDoc/product/2/version/3/doc/15
 
 # 安装
 python setup.py install
@@ -7,7 +10,7 @@ python setup.py install
 
 # 第一次运行会提示登录
 # 凭据存储路径   windows: AppData/Roaming/bhpan   linux: ~/.local/share/bhpan
-
+# 存储的是用北航网盘提供的公钥加密的密码，如果不想存储登录凭据，每次手动输入，那么请在凭据存储路径下的config.json中把"store_password"改为false
 
 
 # ls
