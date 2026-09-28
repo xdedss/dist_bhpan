@@ -7,7 +7,7 @@ from .utils.local_storage import StoredObject
 
 import argparse
 
-import getpass, sys, os, time
+import getpass, sys, os, time, random
 
 import tqdm, tqdm.utils, prettytable
 
@@ -321,6 +321,7 @@ def link_actions(manager: ApiManager, action: str, remote_path: str, expires: in
     if (file_info is None):
         print('no such file ', remote_path)
         return False
+    item_type = 'folder' if (file_info.size == -1) else 'file'
     # get link info
     link_info = manager.get_link(file_info.docid)
     if (action == 'show'):
@@ -328,42 +329,50 @@ def link_actions(manager: ApiManager, action: str, remote_path: str, expires: in
             print(f'{remote_path} does not have an enabled link')
         else:
             print(remote_path)
-            print(f'https://{manager.host}/link/{link_info.link}')
+            print(f'https://{manager.host}/anyshare/zh-cn/link/{link_info.id}')
             if (link_info.password != ''):
                 print(f'password: {link_info.password}')
             perm_list = []
-            if (link_info.perm & 1):
+            if ('preview' in link_info.allow):
                 perm_list.append('preview')
-            if (link_info.perm & 2):
+            if ('download' in link_info.allow):
                 perm_list.append('download')
-            if (link_info.perm & 4):
+            if ('create' in link_info.allow or 'modify' in link_info.allow):
                 perm_list.append('upload')
             print(f'perm:     ' + ', '.join(perm_list))
-            print(f'endtime:  ' + time.strftime("%Y%m%d %H:%M:%S", time.localtime(link_info.endtime / 1000000)) )
-            print(f'limittimes: {link_info.limittimes}')
+            print(f'endtime:  {link_info.expires_at}')
+            print(f'accessed: {link_info.accessed_times}')
+            print(f'limittimes: {link_info.limited_times}')
         return True
     elif (action == 'create'):
         if (expires is None):
             expires = 30
-        expire_time = int(time.time() + 86400 * expires)
+        expires_at = time.strftime('%Y-%m-%dT%H:%M:%S+08:00', time.localtime(time.time() + 86400 * expires))
         if (no_download):
             allow_upload = True # must allow at least 1 perm
         allow_view = not no_download
         allow_down = not no_download
+        password = ''
+        if (use_pass):
+            # the new api takes a client-side password
+            password = ''.join(random.choice('abcdefghjkmnpqrstuvwxyz23456789') for i in range(6))
         if (link_info is None):
-            link_info = manager.create_link(file_info.docid, expire_time * 1000000, -1, 
-                use_pass, allow_view, allow_down, allow_upload)
+            link_info = manager.create_link(file_info.docid, item_type, expires_at, password, 
+                allow_view, allow_down, allow_upload, title=file_info.name)
         else:
-            link_info = manager.modify_link(file_info.docid, expire_time * 1000000, -1, 
-                use_pass, allow_view, allow_down, allow_upload)
-        print(f'https://{manager.host}/link/{link_info.link}')
+            link_info = manager.modify_link(link_info.id, expires_at, password, 
+                allow_view, allow_down, allow_upload, title=link_info.title)
+        print(f'https://{manager.host}/anyshare/zh-cn/link/{link_info.id}')
+        if (password != ''):
+            print(f'password: {password}')
         return True
     elif (action == 'delete'):
         if (link_info is None):
             print('no link')
             return False
         else:
-            manager.delete_link(file_info.docid)
+            manager.delete_link(link_info.id)
+            print('done')
             return True
     else:
         raise 'wtf'

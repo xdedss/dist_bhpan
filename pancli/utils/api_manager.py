@@ -3,6 +3,7 @@
 from . import api, rsa_utils, auth_session
 
 import time
+import urllib.parse
 
 
 class ApiManagerException(Exception):
@@ -57,15 +58,17 @@ class ResourceInfoData():
 
 class LinkInfoData():
 
-    link: str = None
-    password: str = None
-    perm: int = None
-    endtime: int = None
-    limittimes: int = None
-    
+    id: str = None              # 分享ID，删除/修改时使用
+    title: str = None
+    allow: list = None          # 权限列表: display/preview/download/create/modify
+    expires_at: str = None      # 过期时间，形如 2026-10-28T20:05:19+08:00
+    password: str = None        # 提取码，'' 表示没有
+    limited_times: int = None   # 可访问次数，-1 表示不限
+    accessed_times: int = None  # 已访问次数
+
     def __str__(self) -> str:
         res = ''
-        for k in ['link', 'password', 'perm', 'endtime', 'limittimes']:
+        for k in ['id', 'title', 'allow', 'expires_at', 'password', 'limited_times', 'accessed_times']:
             res += f'{k}: {getattr(self, k)}\n'
         return res[:-1]
 
@@ -474,80 +477,100 @@ class ApiManager():
         return r['dirs'], r['files']
 
 
-    # share
-    def get_link(self, docid: str) -> LinkInfoData:
-        '''returns None if no opened link'''
-        self._check_token()
-        r = api.post_json(self._make_url('/link/getdetail'), {
-            'docid': docid,
-        }, tokenid=self._tokenid)
-        if (r['link'] == ''):
-            return None
+    # share (anonymous link, new /api/shared-link/v1/document API)
+    def _make_share_url(self, dir: str):
+        if (not dir.startswith('/')):
+            dir = '/' + dir
+        return f'https://{self.host}/api/shared-link/v1/document' + dir
+
+    def _make_allow(self, allow_view: bool, allow_download: bool, allow_upload: bool) -> list:
+        '''build the allow list, display is attached when any other perm is enabled'''
+        allow = []
+        if (allow_view):
+            allow.append('preview')
+        if (allow_download):
+            allow.append('download')
+        if (allow_upload):
+            allow.append('create')
+            allow.append('modify')
+        if (len(allow) > 0):
+            allow.insert(0, 'display')
+        return allow
+
+    def _parse_link(self, r) -> LinkInfoData:
         res = LinkInfoData()
-        res.link = r['link']
-        res.password = r['password']
-        res.endtime = r['endtime']
-        res.perm = r['perm']
-        res.limittimes = r['limittimes']
+        res.id = r.get('id')
+        res.title = r.get('title')
+        item = r.get('item')
+        res.allow = item.get('allow') if (item is not None) else []
+        res.expires_at = r.get('expires_at')
+        res.password = r.get('password') or ''
+        res.limited_times = r.get('limited_times')
+        res.accessed_times = r.get('accessed_times')
         return res
 
-    def create_link(self, docid: str, end_time: int=None, limit_times: int=-1,  
-        enable_pass=False, allow_view=True, allow_download=True, allow_upload=False) -> LinkInfoData:
-        if (allow_download):
-            allow_view = True
-        perm_int = 1 * allow_view + 2 * allow_download + 4 * allow_upload
-        
+    def get_link(self, docid: str) -> LinkInfoData:
+        '''returns the first anonymous link of the doc, or None if it has no link'''
         self._check_token()
-        d = {
-            'docid': docid,
-            'open': enable_pass,
-            'limittimes': limit_times,
-            'perm': perm_int,
-        }
-        if (end_time is not None):
-            d['endtime'] = end_time
-        r = api.post_json(self._make_url('/link/open'), d, tokenid=self._tokenid)
-        if (r['result'] == 0):
-            res = LinkInfoData()
-            res.link = r['link']
-            res.password = r['password']
-            res.endtime = r['endtime']
-            res.perm = r['perm']
-            res.limittimes = r['limittimes']
-            return res
-        else:
-            raise NeedReviewException()
-        
-    def modify_link(self, docid: str, end_time: int, limit_times: int=-1, 
-        enable_pass=False, allow_view=True, allow_download=True, allow_upload=False) -> LinkInfoData:
-        if (allow_download):
-            allow_view = True
-        perm_int = 1 * allow_view + 2 * allow_download + 4 * allow_upload
-        
+        url = self._make_share_url('/folder/' + urllib.parse.quote(docid, safe='') + '?type=anonymous')
+        r = api.get_url(url, tokenid=self._tokenid)
+        if (not r):
+            return None
+        return self._parse_link(r[0])
+
+    def create_link(self, docid: str, item_type: str='folder', expires_at: str=None, password: str='',
+        allow_view=True, allow_download=True, allow_upload=False, title: str=None, limited_times: int=-1) -> LinkInfoData:
         self._check_token()
-        r = api.post_json(self._make_url('/link/set'), {
-            'docid': docid,
-            'open': enable_pass,
-            'limittimes': limit_times,
-            'endtime': end_time,
-            'perm': perm_int,
+        allow = self._make_allow(allow_view, allow_download, allow_upload)
+        r = api.post_json(self._make_share_url('/anonymous'), {
+            'item': {
+                'id': docid,
+                'type': item_type,
+                'allow': allow,
+            },
+            'title': title,
+            'expires_at': expires_at,
+            'password': password,
+            'verify_mobile': False,
+            'limited_times': limited_times,
         }, tokenid=self._tokenid)
-        if (r['result'] == 0):
-            res = LinkInfoData()
-            res.link = r['link']
-            res.password = r['password']
-            res.endtime = r['endtime']
-            res.perm = r['perm']
-            res.limittimes = r['limittimes']
-            return res
-        else:
-            raise NeedReviewException()
-    
-    def delete_link(self, docid: str):
+        res = LinkInfoData()
+        res.id = r['id']
+        res.title = title
+        res.allow = allow
+        res.expires_at = expires_at
+        res.password = password
+        res.limited_times = limited_times
+        res.accessed_times = 0
+        return res
+
+    def modify_link(self, link_id: str, expires_at: str=None, password: str='',
+        allow_view=True, allow_download=True, allow_upload=False, title: str=None, limited_times: int=-1) -> LinkInfoData:
         self._check_token()
-        r = api.post_json(self._make_url('/link/close'), {
-            'docid': docid,
+        allow = self._make_allow(allow_view, allow_download, allow_upload)
+        r = api.put_json(self._make_share_url('/anonymous/' + link_id), {
+            'item': {
+                'allow': allow,
+            },
+            'title': title,
+            'expires_at': expires_at,
+            'password': password,
+            'verify_mobile': False,
+            'limited_times': limited_times,
         }, tokenid=self._tokenid)
+        res = LinkInfoData()
+        res.id = link_id
+        res.title = title
+        res.allow = allow
+        res.expires_at = expires_at
+        res.password = password
+        res.limited_times = limited_times
+        res.accessed_times = 0
+        return res
+
+    def delete_link(self, link_id: str):
+        self._check_token()
+        api.delete_json(self._make_share_url('/anonymous/' + link_id), tokenid=self._tokenid)
 
 
 
