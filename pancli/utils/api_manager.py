@@ -464,7 +464,7 @@ class ApiManager():
         self._check_token()
         d = {
             'docid': dir_id,
-            'attr': 'true' if with_attr else 'false',
+            'attr': True if with_attr else False,
         }
         if (by is not None):
             d['by'] = by
